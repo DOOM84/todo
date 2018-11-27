@@ -1,5 +1,7 @@
 <template>
     <div class="app-component">
+        <loading :active.sync="isLoading"
+                 :is-full-page="fullPage"></loading>
         <table class="table">
             <thead>
             <tr>
@@ -11,14 +13,14 @@
             </thead>
             <tbody>
 
-            <task-component v-for="task in tasks" :key="task.id" :task="task"></task-component>
+            <task-component v-for="task in tasks" :key="task.id" :task="task" @delete="remove"></task-component>
 
             <tr>
                 <td colspan="2">
                     <input v-model="task.title" type="text" id="task" class="form-control">
                 </td>
                 <td>
-                    <select v-model="task.priority" id="select" class="form-control">
+                    <select v-model="task.priority" id="priority" class="form-control">
                         <option>Low</option>
                         <option>Medium</option>
                         <option>High</option>
@@ -35,45 +37,65 @@
         </table>
 
     </div>
-    
+
 </template>
 
 <script>
     import TaskComponent from './Task';
-    export default {
-        data(){
-            return{
+    import Loading from 'vue-loading-overlay';
+    import 'vue-loading-overlay/dist/vue-loading.css';
 
+    export default {
+        data() {
+            return {
+                isLoading: false,
+                fullPage: true,
                 tasks: [],
                 task: {
                     title: '',
                     priority: ''
                 },
-
-                message: 'Hello FROM HERE....'
-
             }
         },
+        methods: {
 
-        methods:{
-
-            getTasks(){
-                window.axios.get('/api/tasks').then(({data})=>{
-                    data.forEach(task=>{
-                       this.tasks.push(task)
+            getTasks() {
+                window.axios.get('/api/tasks').then(({data}) => {
+                    data.forEach(task => {
+                        this.tasks.push(task)
                     });
                 });
             },
-            store(){
+            store() {
+                if (this.checkInputs()) {
+                    this.isLoading = true;
+                    window.axios.post('/api/tasks', this.task).then(savedTask => {
+                        this.tasks.push(savedTask.data);
+                        this.task.title = '';
+                        this.task.priority = '';
+                        this.isLoading = false;
+                    });
+                }
+
+            },
+            checkInputs() {
+                if (this.task.title && this.task.priority) return true;
+            },
+            remove(id) {
+                this.isLoading = true;
+                window.axios.delete(`/api/tasks/${id}`).then(() => {
+                    let index = this.tasks.findIndex(task => task.id === id);
+                    this.tasks.splice(index, 1);
+                });
+                this.isLoading = false;
 
             }
 
         },
-
-        created(){
-           this.getTasks();
+        created() {
+            this.getTasks();
         },
-        components: {TaskComponent}
+        components: {TaskComponent, Loading}
     }
 </script>
 
